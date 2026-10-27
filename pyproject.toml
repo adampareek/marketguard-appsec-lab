@@ -1,0 +1,10 @@
+[project]
+name = "marketguard-appsec-lab"
+version = "1.0.0"
+description = "Exploit-to-remediation application security lab with vulnerable and hardened modes"
+requires-python = ">=3.12"
+license = {text = "MIT"}
+keywords = ["application-security", "owasp", "devsecops", "sast", "dast", "threat-modeling"]
+
+[tool.bandit]
+exclude_dirs = ["tests", "exploits"]
