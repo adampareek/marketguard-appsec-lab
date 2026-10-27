@@ -1,0 +1,46 @@
+name: Security Pipeline
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  sast:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Bandit
+        run: python -m pip install bandit
+      - name: Blocking SAST on hardened security helpers
+        run: bandit -q app/security.py
+      - name: Full lab SAST report (intentional findings allowed)
+        run: bandit -r app -f json -o bandit-full.json || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bandit-full-report
+          path: bandit-full.json
+
+  dast:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Start hardened service
+        run: |
+          LAB_MODE=secure APP_SECRET=ci-only-secret PORT=5001 python -m app.main > secure.log 2>&1 &
+          echo $! > secure.pid
+          for i in {1..20}; do
+            curl -fsS http://127.0.0.1:5001/health && break
+            sleep 1
+          done
+      - name: Run black-box DAST checks
+        run: DAST_TARGET=http://127.0.0.1:5001 python tests/dast_http.py
+      - name: Show server log on failure
+        if: failure()
+        run: cat secure.log
